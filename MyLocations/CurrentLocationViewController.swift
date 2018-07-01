@@ -25,10 +25,17 @@ class CurrentLocationViewController: UIViewController, CLLocationManagerDelegate
     var updatingLocation = false
     var lastLocationError: Error?
     
+    let geocoder = CLGeocoder()
+    var placemark: CLPlacemark?
+    var performingReverseGeocoding = false
+    var lastGeocodingError: Error?
+    
+    
 
     override func viewDidLoad() {
         super.viewDidLoad()
         updateLabels()
+        configureGetButton()
     }
     
     // MARK: - Actions
@@ -44,8 +51,15 @@ class CurrentLocationViewController: UIViewController, CLLocationManagerDelegate
             return
         }
         
-        startLocationManager()
+        if updatingLocation {
+            stopLocationManager()
+        } else {
+            location = nil
+            lastLocationError = nil
+            startLocationManager()
+        }
         updateLabels()
+        configureGetButton()
     }
 
     // MARK: - CLLocationManagerDelegate
@@ -58,6 +72,7 @@ class CurrentLocationViewController: UIViewController, CLLocationManagerDelegate
         lastLocationError = error
         stopLocationManager()
         updateLabels()
+        configureGetButton()
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -81,6 +96,16 @@ class CurrentLocationViewController: UIViewController, CLLocationManagerDelegate
             if newLocation.horizontalAccuracy <= locationManager.desiredAccuracy {
                 print("*** We're done!")
                 stopLocationManager()
+                configureGetButton()
+            }
+            
+            // 6
+            if !performingReverseGeocoding {
+                print("*** going to geocode")
+                performingReverseGeocoding = true
+                geocoder.reverseGeocodeLocation(newLocation, completionHandler: {(placemarks, error) in
+                    print("*** found placemarks: \(String(describing: placemarks)), error: \(String(describing: error))")
+                })
             }
         }
         
@@ -136,12 +161,26 @@ class CurrentLocationViewController: UIViewController, CLLocationManagerDelegate
         }
     }
     
+    /**
+     Starts the location manager
+     */
     func startLocationManager() {
         if CLLocationManager.locationServicesEnabled() {
             locationManager.delegate = self
             locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
             locationManager.startUpdatingLocation()
             updatingLocation = true
+        }
+    }
+    
+    /**
+     Updates the button for getting the location to indicate whether the location search is done or not
+     **/
+    func configureGetButton() {
+        if updatingLocation {
+            getButton.setTitle("Stop", for: UIControl.State.normal)
+        } else {
+            getButton.setTitle("Get My Location", for: UIControl.State.normal)
         }
     }
 
